@@ -8,6 +8,8 @@ import {
   Save,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
+import controlService from "../../services/controlService";
 
 const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_LABELS = {
@@ -20,7 +22,7 @@ const DAY_LABELS = {
   Sun: "CN",
 };
 
-const AutoPump = ({ config, onSave, isUpdating }) => {
+const AutoPump = ({ deviceId, config, pumpStatus, onSave, isUpdating }) => {
   const [localIsAuto, setLocalIsAuto] = useState(false);
   const [moistureThreshold, setMoistureThreshold] = useState(40);
   const [durationSeconds, setDurationSeconds] = useState(30);
@@ -29,10 +31,8 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
   const [newTime, setNewTime] = useState("08:00");
   const [selectedDays, setSelectedDays] = useState([]);
 
-  // Cập nhật state nội bộ khi config từ server thay đổi
   useEffect(() => {
     if (config) {
-      setLocalIsAuto(config.enabled ?? false);
       setMoistureThreshold(config.threshold_moisture ?? 40);
       setDurationSeconds(config.duration_seconds ?? 30);
 
@@ -47,6 +47,26 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
       setSchedules(formattedSchedules);
     }
   }, [config]);
+
+  useEffect(() => {
+    setLocalIsAuto(pumpStatus === "AUTO");
+  }, [pumpStatus]);
+
+  const handleToggleAuto = async () => {
+    const nextState = !localIsAuto;
+    setLocalIsAuto(nextState);
+
+    const nextAction = nextState ? "AUTO" : "OFF";
+    try {
+      await controlService.togglePump(deviceId, nextAction);
+      toast.success(
+        nextAction === "AUTO" ? "Đã bật Tự động" : "Đã tắt Tự động"
+      );
+    } catch (err) {
+      setLocalIsAuto(!nextState);
+      toast.error("Không thể chuyển đổi chế độ");
+    }
+  };
 
   const toggleDay = (day) => {
     setSelectedDays((prev) =>
@@ -63,10 +83,6 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
 
   const removeSchedule = (index) => {
     setSchedules(schedules.filter((_, i) => i !== index));
-  };
-
-  const handleToggleAuto = () => {
-    setLocalIsAuto(!localIsAuto);
   };
 
   const prepareAndSave = () => {
@@ -91,15 +107,14 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
   };
 
   return (
-    <section className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden">
-      {/* Header & Toggle */}
+    <section className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
       <div className="flex justify-between items-center mb-8">
         <div className="flex gap-4">
           <div
-            className={`p-4 rounded-2xl transition-all ${
+            className={`p-4 rounded-2xl transition-all duration-300 ${
               localIsAuto
                 ? "bg-emerald-500 text-white shadow-lg"
-                : "bg-gray-100 text-gray-400"
+                : "bg-gray-800 text-white shadow-md"
             }`}
           >
             <Activity size={32} />
@@ -113,11 +128,13 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
             </p>
           </div>
         </div>
+
+        {/* Toggle Button */}
         <button
           type="button"
           onClick={handleToggleAuto}
           className={`w-16 h-8 rounded-full relative transition-all duration-500 ${
-            localIsAuto ? "bg-emerald-500" : "bg-gray-300"
+            localIsAuto ? "bg-emerald-500" : "bg-gray-800"
           }`}
         >
           <div
@@ -128,7 +145,6 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
         </button>
       </div>
 
-      {/* Controls Area */}
       <div
         className={`transition-all duration-500 space-y-8 ${
           !localIsAuto
@@ -137,7 +153,6 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
         }`}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Ngưỡng độ ẩm */}
           <div className="p-6 bg-emerald-50/50 rounded-3xl border border-emerald-100">
             <div className="flex justify-between mb-4">
               <label className="text-xs font-black text-emerald-700 uppercase">
@@ -157,7 +172,6 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
             />
           </div>
 
-          {/* Thời gian tưới */}
           <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-center">
             <label className="text-xs font-black text-blue-700 uppercase mb-3">
               Thời gian tưới mỗi lần
@@ -177,14 +191,12 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
           </div>
         </div>
 
-        {/* Lịch trình */}
         <div className="p-6 bg-gray-50 rounded-[2rem] border border-gray-200">
           <div className="flex items-center gap-2 mb-6 font-bold text-gray-700">
             <Calendar size={20} className="text-emerald-600" /> Lịch trình tưới
             định kỳ
           </div>
 
-          {/* Form thêm lịch */}
           <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mb-6">
             <div className="flex flex-wrap items-center gap-4">
               <input
@@ -197,6 +209,7 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
                 {DAYS_OF_WEEK.map((day) => (
                   <button
                     key={day}
+                    type="button"
                     onClick={() => toggleDay(day)}
                     className={`w-9 h-9 rounded-lg text-xs font-black transition-all ${
                       selectedDays.includes(day)
@@ -209,6 +222,7 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
                 ))}
               </div>
               <button
+                type="button"
                 onClick={addSchedule}
                 className="ml-auto flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition-all"
               >
@@ -217,7 +231,6 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
             </div>
           </div>
 
-          {/* Danh sách lịch */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2">
             {schedules.length > 0 ? (
               schedules.map((sched, idx) => (
@@ -241,6 +254,7 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => removeSchedule(idx)}
                     className="p-2 text-gray-300 hover:text-red-500 transition-colors"
                   >
@@ -256,7 +270,6 @@ const AutoPump = ({ config, onSave, isUpdating }) => {
           </div>
         </div>
 
-        {/* Nút Lưu */}
         <button
           onClick={prepareAndSave}
           disabled={isUpdating}

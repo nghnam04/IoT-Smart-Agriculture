@@ -16,8 +16,15 @@ const PumpWidget = ({
     if (initialStatus) setStatus(initialStatus);
   }, [initialStatus]);
 
+  useEffect(() => {
+    if (isAutoMode) {
+      setStatus("OFF");
+    }
+  }, [isAutoMode]);
+
   const handleToggle = async () => {
     if (!deviceId) return toast.error("Không xác định được thiết bị");
+
     if (isAutoMode)
       return toast.warning(
         "Vui lòng tắt chế độ Tự động trước khi điều khiển tay"
@@ -25,14 +32,14 @@ const PumpWidget = ({
 
     setLoading(true);
     const nextAction = status === "ON" ? "OFF" : "ON";
+
     console.log(`[PumpWidget] Người dùng bấm nút: ${status} -> ${nextAction}`);
 
     try {
       const response = await controlService.togglePump(deviceId, nextAction);
 
       if (response) {
-        console.log(`[PumpWidget] Cập nhật trạng thái UI thành: ${nextAction}`);
-        setStatus(nextAction);
+        setStatus(nextAction); // ✅ GIỮ LOGIC CŨ
         toast.success(`Đã ${nextAction === "ON" ? "BẬT" : "TẮT"} máy bơm`);
         if (onStatusChange) onStatusChange();
       }
