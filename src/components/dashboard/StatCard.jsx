@@ -1,4 +1,4 @@
-import { AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const StatCard = ({ title, value, unit, icon: Icon, colorClass }) => {
   return (
