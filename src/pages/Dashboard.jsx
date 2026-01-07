@@ -34,6 +34,7 @@ const Dashboard = () => {
     queryFn: () => monitoringService.getCurrentData(selectedDeviceId),
     enabled: !!selectedDeviceId,
     refetchInterval: 2000,
+    refetchIntervalInBackground: true,
   });
 
   // Lấy dữ liệu lịch sử
@@ -48,6 +49,7 @@ const Dashboard = () => {
     },
     enabled: !!selectedDeviceId,
     refetchInterval: 2000,
+    refetchIntervalInBackground: true,
   });
 
   const rawHistory = useMemo(
@@ -67,7 +69,7 @@ const Dashboard = () => {
 
   // Record cuối cùng có dữ liệu khác null
   const lastValidRecord = useMemo(() => {
-    for (let i = 0; i <= rawHistory.length - 1; i++) {
+    for (let i = 0; i < rawHistory.length; i++) {
       const r = rawHistory[i];
       if (
         r &&
@@ -104,29 +106,25 @@ const Dashboard = () => {
         ? "OFFLINE (Saved)"
         : "OFFLINE",
 
-      lastUpdate: isSensorOnline
-        ? new Date().toLocaleString("vi-VN")
-        : lastValidRecord?.timestamp || lastValidRecord?.createdAt
-        ? new Date(
-            lastValidRecord.timestamp || lastValidRecord.createdAt
-          ).toLocaleString("vi-VN")
-        : "Chưa có dữ liệu",
+      lastUpdate:
+        statSource?.timestamp || statSource?.createdAt
+          ? new Date(
+              statSource.timestamp || statSource.createdAt
+            ).toLocaleString("vi-VN")
+          : "Chưa có dữ liệu",
     }),
     [statSource, isSensorOnline, lastValidRecord]
   );
 
   const advice = useMemo(() => {
     if (!statSource) return [];
-
     const tips = [];
-
     const t = statSource.temperature;
     const h = statSource.humidity;
     const s = statSource.soil_moisture;
     const l = statSource.light_level ?? statSource.light;
 
     let isStable = true;
-
     if (t != null) {
       if (t < 18) {
         tips.push("🌡️ Nhiệt độ thấp, nên tăng nhiệt hoặc che chắn cây.");
@@ -136,7 +134,6 @@ const Dashboard = () => {
         isStable = false;
       }
     }
-
     if (h != null) {
       if (h < 40) {
         tips.push("💧 Độ ẩm không khí thấp, nên phun sương.");
@@ -146,7 +143,6 @@ const Dashboard = () => {
         isStable = false;
       }
     }
-
     if (s != null) {
       if (s < 30) {
         tips.push("🚿 Đất khô, nên tưới nước.");
@@ -156,7 +152,6 @@ const Dashboard = () => {
         isStable = false;
       }
     }
-
     if (l != null) {
       if (l < 300) {
         tips.push("☀️ Ánh sáng yếu, nên tăng chiếu sáng.");
@@ -194,13 +189,20 @@ const Dashboard = () => {
           item?.timestamp || item?.createdAt
             ? new Date(item.timestamp || item.createdAt).toLocaleTimeString(
                 "vi-VN",
-                { hour: "2-digit", minute: "2-digit" }
+                { hour: "2-digit", minute: "2-digit", second: "2-digit" } // Thêm giây để thấy biểu đồ chạy realtime
               )
             : "--:--",
-        temperature: Number(item?.temperature ?? 0),
-        humidity: Number(item?.humidity ?? 0),
-        soil_moisture: Number(item?.soil_moisture ?? 0),
-        light_level: Number(item?.light_level ?? item?.light ?? 0),
+        temperature:
+          item?.temperature != null ? Number(item.temperature) : null,
+        humidity: item?.humidity != null ? Number(item.humidity) : null,
+        soil_moisture:
+          item?.soil_moisture != null ? Number(item.soil_moisture) : null,
+        light_level:
+          item?.light_level != null
+            ? Number(item.light_level)
+            : item?.light != null
+            ? Number(item.light)
+            : null,
       }));
   }, [rawHistory]);
 
@@ -296,7 +298,10 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100">
-              <HistoryChart data={chartData} title="Biểu đồ lịch sử" />
+              <HistoryChart
+                data={chartData}
+                title="Biểu đồ lịch sử trực tuyến"
+              />
             </div>
 
             <div className="space-y-6">

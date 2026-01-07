@@ -12,7 +12,7 @@ const deviceService = {
       name,
       type,
     });
-    return res.data;
+    return res.data.data || res.data;
   },
 
   // Lấy danh sách devices của user: GET /devices
