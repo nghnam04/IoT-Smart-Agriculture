@@ -9,6 +9,7 @@ import AutoPump from "../components/setting/AutoPump";
 const SettingsPage = () => {
   const queryClient = useQueryClient();
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [autoActive, setAutoActive] = useState(false);
 
   const { data: devices, isLoading: isLoadingList } = useQuery({
     queryKey: ["userDevices"],
@@ -18,6 +19,9 @@ const SettingsPage = () => {
   useEffect(() => {
     if (devices?.length > 0 && !selectedDeviceId) {
       setSelectedDeviceId(devices[0].device_id || devices[0]._id);
+      setAutoActive(
+        devices[0]?.automation_configs?.auto_pump?.enabled || false
+      );
     }
   }, [devices, selectedDeviceId]);
 
@@ -32,7 +36,10 @@ const SettingsPage = () => {
     refetchInterval: 2000,
   });
 
-  const pumpStatus = monitor?.pump_status || "OFF";
+  const pumpStatus = monitor?.pump_state || "OFF";
+  const deviceStatus = monitor?.status || "OFFLINE";
+
+  const isAutoMode = autoActive;
 
   const configMutation = useMutation({
     mutationFn: (payload) =>
@@ -55,7 +62,6 @@ const SettingsPage = () => {
       </div>
     );
 
-  // Guard clause để tránh lỗi khi selectedDevice chưa load xong
   if (!selectedDevice) return null;
 
   return (
@@ -86,7 +92,11 @@ const SettingsPage = () => {
       </div>
 
       <div className="flex flex-col gap-6">
-        <PumpWidget deviceId={selectedDeviceId} pumpStatus={pumpStatus} />
+        <PumpWidget
+          deviceId={selectedDeviceId}
+          initialStatus={pumpStatus}
+          isAutoMode={isAutoMode}
+        />
 
         <AutoPump
           deviceId={selectedDeviceId}
@@ -94,6 +104,9 @@ const SettingsPage = () => {
           pumpStatus={pumpStatus}
           onSave={handleSaveAutomation}
           isUpdating={configMutation.isPending}
+          onAutoChange={setAutoActive}
+          isAutoMode={isAutoMode}
+          deviceStatus={deviceStatus}
         />
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Activity,
   Clock,
@@ -22,14 +22,26 @@ const DAY_LABELS = {
   Sun: "CN",
 };
 
-const AutoPump = ({ deviceId, config, pumpStatus, onSave, isUpdating }) => {
-  const [localIsAuto, setLocalIsAuto] = useState(false);
+const AutoPump = ({
+  deviceId,
+  config,
+  pumpStatus,
+  onSave,
+  isUpdating,
+  onAutoChange,
+  isAutoMode,
+}) => {
+  const [localIsAuto, setLocalIsAuto] = useState(isAutoMode);
   const [moistureThreshold, setMoistureThreshold] = useState(40);
   const [durationSeconds, setDurationSeconds] = useState(30);
   const [schedules, setSchedules] = useState([]);
 
   const [newTime, setNewTime] = useState("08:00");
   const [selectedDays, setSelectedDays] = useState([]);
+
+  useEffect(() => {
+    setLocalIsAuto(isAutoMode);
+  }, [isAutoMode]);
 
   useEffect(() => {
     if (config) {
@@ -48,22 +60,20 @@ const AutoPump = ({ deviceId, config, pumpStatus, onSave, isUpdating }) => {
     }
   }, [config]);
 
-  useEffect(() => {
-    setLocalIsAuto(pumpStatus === "AUTO");
-  }, [pumpStatus]);
-
   const handleToggleAuto = async () => {
+    if (!localIsAuto && pumpStatus !== "OFF") {
+      return toast.warning("Vui lòng tắt bơm trước khi bật Tự động");
+    }
+
     const nextState = !localIsAuto;
     setLocalIsAuto(nextState);
+    onAutoChange?.(nextState);
 
-    const nextAction = nextState ? "AUTO" : "OFF";
     try {
-      await controlService.togglePump(deviceId, nextAction);
-      toast.success(
-        nextAction === "AUTO" ? "Đã bật Tự động" : "Đã tắt Tự động"
-      );
+      await controlService.togglePump(deviceId, nextState ? "AUTO" : "OFF");
     } catch (err) {
       setLocalIsAuto(!nextState);
+      onAutoChange?.(!nextState);
       toast.error("Không thể chuyển đổi chế độ");
     }
   };
@@ -89,10 +99,7 @@ const AutoPump = ({ deviceId, config, pumpStatus, onSave, isUpdating }) => {
     const cleanSchedules = schedules.map((s) => {
       const [hourStr, minStr] = s.time.split(":");
       return {
-        time: {
-          hour: Number(hourStr),
-          minute: Number(minStr),
-        },
+        time: { hour: Number(hourStr), minute: Number(minStr) },
         days: s.days,
         enabled: s.enabled ?? true,
       };
@@ -129,7 +136,6 @@ const AutoPump = ({ deviceId, config, pumpStatus, onSave, isUpdating }) => {
           </div>
         </div>
 
-        {/* Toggle Button */}
         <button
           type="button"
           onClick={handleToggleAuto}
@@ -152,6 +158,7 @@ const AutoPump = ({ deviceId, config, pumpStatus, onSave, isUpdating }) => {
             : "opacity-100"
         }`}
       >
+        {/* Thông số độ ẩm & thời gian */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="p-6 bg-emerald-50/50 rounded-3xl border border-emerald-100">
             <div className="flex justify-between mb-4">
@@ -191,6 +198,7 @@ const AutoPump = ({ deviceId, config, pumpStatus, onSave, isUpdating }) => {
           </div>
         </div>
 
+        {/* Lịch tưới */}
         <div className="p-6 bg-gray-50 rounded-[2rem] border border-gray-200">
           <div className="flex items-center gap-2 mb-6 font-bold text-gray-700">
             <Calendar size={20} className="text-emerald-600" /> Lịch trình tưới

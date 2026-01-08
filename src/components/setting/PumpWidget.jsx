@@ -16,12 +16,6 @@ const PumpWidget = ({
     if (initialStatus) setStatus(initialStatus);
   }, [initialStatus]);
 
-  useEffect(() => {
-    if (isAutoMode) {
-      setStatus("OFF");
-    }
-  }, [isAutoMode]);
-
   const handleToggle = async () => {
     if (!deviceId) return toast.error("Không xác định được thiết bị");
 
@@ -33,18 +27,15 @@ const PumpWidget = ({
     setLoading(true);
     const nextAction = status === "ON" ? "OFF" : "ON";
 
-    console.log(`[PumpWidget] Người dùng bấm nút: ${status} -> ${nextAction}`);
-
     try {
       const response = await controlService.togglePump(deviceId, nextAction);
 
       if (response) {
-        setStatus(nextAction); // ✅ GIỮ LOGIC CŨ
+        setStatus(nextAction);
         toast.success(`Đã ${nextAction === "ON" ? "BẬT" : "TẮT"} máy bơm`);
         if (onStatusChange) onStatusChange();
       }
-    } catch (error) {
-      console.error("[PumpWidget] Lỗi xử lý điều khiển:", error);
+    } catch {
       toast.error("Lệnh điều khiển thất bại");
     } finally {
       setLoading(false);
@@ -56,7 +47,7 @@ const PumpWidget = ({
   return (
     <div
       className={`bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 h-full flex flex-col justify-between ${
-        isAutoMode ? "opacity-80" : ""
+        isAutoMode ? "opacity-30 pointer-events-none" : ""
       }`}
     >
       <div>
